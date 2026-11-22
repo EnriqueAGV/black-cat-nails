@@ -13,11 +13,11 @@ Sistema web para el salón de manicura y estética **Black Cat Nails by Vante**,
 ## Enlace del Despliegue
 
 - **URL de Producción**: [https://black-cat-nails-web.vercel.app](https://black-cat-nails-web.vercel.app)
-- **Repositorio en GitHub**: [Kikeagv/Black-cat-nails-web](https://github.com/Kikeagv/Black-cat-nails-web)
+- **Repositorio**: esta carpeta `web/` del monorepo [Kikeagv/black-cat-nails-mobile](https://github.com/Kikeagv/black-cat-nails-mobile). El historial de la Etapa 2 se conservó al incorporarla.
 
 ## Credenciales de prueba
 
-Estas cuentas de demostración se cargan desde `src/data/seed.json`:
+Son las mismas cuentas de la app móvil; se crean con `npm run seed` desde la raíz del repositorio:
 
 | Rol | Correo | Contraseña |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ Estas cuentas de demostración se cargan desde `src/data/seed.json`:
 
 ## Funcionalidades
 
-- **Autenticación**: Registro e inicio de sesión para clientas, sesión JWT y autorización por roles (`clienta` y `admin`). El registro público siempre asigna el rol `clienta`.
+- **Autenticación**: Firebase Authentication con correo/contraseña y Google, recuperación de contraseña, sesión en cookie httpOnly y autorización por roles (`clienta` y `admin`). El registro público siempre asigna el rol `clienta`.
 - **Portal de la clienta**:
   - Catálogo filtrable por categoría y próxima cita destacada (`/app`).
   - Agendamiento en tres pasos. La disponibilidad se consulta en vivo y se vuelve a validar en el servidor al crear la cita (`/app/agendar`).
@@ -40,23 +40,38 @@ Estas cuentas de demostración se cargan desde `src/data/seed.json`:
 - **Clientas**: Búsqueda y filtros por actividad e inasistencias, ficha con historial y métricas, alerta a partir de dos inasistencias y notas privadas editables (`/admin/clientas`).
 - **Estados de interfaz y UX**: Indicadores de carga, estados vacíos, mensajes de error y acciones para reintentar en las pantallas que consultan datos. El cliente HTTP informa cuando detecta falta de conexión. La interfaz es adaptable a móvil, tableta y escritorio.
 
-## Arquitectura y autenticación
+## Arquitectura y autenticación (entrega final)
 
-La aplicación está organizada alrededor de Next.js App Router:
+La web comparte el proyecto de Firebase con la app móvil de la raíz del repositorio.
 
 - `src/app` contiene las páginas de clientas, administración y acceso público.
 - `src/app/api` contiene los Route Handlers del API.
-- `src/services` centraliza las llamadas HTTP desde el cliente.
-- `src/context` comparte el estado de autenticación, agenda, catálogo e inventario.
+- `src/server/db.ts` es el repositorio de datos sobre **Cloud Firestore** (firebase-admin), con las mismas colecciones que usa la app móvil: `usuarias`, `servicios`, `insumos`, `citas` y `agendaDias`.
+- `src/server/session.ts` verifica los ID tokens de **Firebase Authentication** y maneja la cookie de sesión; `src/server/token.ts` firma y lee el JWT de la cookie.
+- `src/lib/firebase.ts` inicializa Firebase Authentication en el navegador.
+- `src/services` centraliza las llamadas HTTP desde el cliente; `src/context` comparte el estado de autenticación, agenda, catálogo e inventario.
 - `src/domain` contiene reglas de negocio y cálculos; `src/schemas` define validaciones Zod.
-- `src/server` contiene la sesión y los repositorios de datos del servidor.
 
-### Registro
+### Flujo de inicio de sesión
 
-1. El formulario usa React Hook Form y `zodResolver`; valida nombre (mínimo 3 caracteres), correo, teléfono de 8 dígitos y contraseña (mínimo 8 caracteres).
-2. Envía `POST /api/auth/registro`. El servidor vuelve a validar el cuerpo con Zod, normaliza el correo y rechaza correos duplicados.
-3. `bcryptjs` guarda un hash de la contraseña usando 10 rondas. La cuenta recibe rol `clienta` e inicia con cero inasistencias.
-4. El servidor firma un JWT y crea la cookie de sesión. La respuesta excluye `passwordHash`.
+1. El navegador inicia sesión con el SDK de Firebase: correo y contraseña, o **Google** con ventana emergente.
+2. Envía el ID token a `POST /api/auth/login`. El servidor lo verifica con `firebase-admin`, busca el perfil en `usuarias/{uid}` y crea la cookie httpOnly `bcn_session` (JWT de 8 horas, `SameSite=Lax`).
+3. Si es el primer ingreso con Google, la API responde `perfil_incompleto` y la web pide el teléfono en un diálogo; `POST /api/auth/registro` crea el perfil con rol `clienta`, igual que la pantalla "Completá tu perfil" de la app móvil.
+4. El registro con correo crea la cuenta en Firebase Authentication y luego el perfil con el mismo endpoint. Si el perfil falla, la cuenta se borra para no dejarla a medias.
+5. "¿Olvidaste tu contraseña?" envía el correo de recuperación de Firebase.
+
+### Persistencia compartida con la app móvil
+
+- Crear una cita es una **transacción** de Firestore que revisa y reserva el bloque en `agendaDias/{fecha}`. La app móvil usa el mismo documento, así que una clienta en el teléfono y otra en la web no pueden tomar el mismo horario (la segunda recibe `409 horario_ocupado`).
+- Cancelar o marcar inasistencia libera el bloque del día. Completar una cita descuenta insumos y calcula el retoque.
+- Los cambios de estado se registran en `usuarias/{uid}/actividad`, que la clienta ve en **Mi actividad** de la app móvil.
+- La administradora ve en la agenda web las citas que las clientas agendan desde el teléfono, y viceversa.
+
+### Autorización
+
+- `src/proxy.ts` protege `/app/*` (clienta) y `/admin/*` (administradora) a partir de la cookie.
+- Cada Route Handler vuelve a validar sesión y rol con `requireSession` y `requireRol`.
+- El registro público siempre crea rol `clienta`; la cuenta de administradora solo se crea con `npm run seed` desde la raíz.
 
 ## API principal
 
@@ -74,37 +89,35 @@ La aplicación está organizada alrededor de Next.js App Router:
 
 ### Prerrequisitos
 
-- **Node.js**: v20.9.0 o superior (requisito de Next.js 16)
-- **npm**: v10 o superior
+- **Node.js** v20.9.0 o superior y **npm** v10 o superior.
+- El proyecto de Firebase de la app móvil ya configurado (ver [`../docs/configuracion-firebase.md`](../docs/configuracion-firebase.md)), con los datos cargados con `npm run seed` desde la raíz.
 
 ### Instalación y Ejecución
 
-1. **Clonar el repositorio:**
-   ```bash
-   git clone https://github.com/Kikeagv/Black-cat-nails-web.git
-   cd Black-cat-nails-web
-   ```
+```bash
+cd web
+npm install
+cp .env.example .env.local
+```
 
-2. **Instalar dependencias:**
-   ```bash
-   npm install
-   ```
+En `.env.local`:
 
-3. **Configurar variables de entorno:**
-   ```bash
-   cp .env.example .env.local
-   ```
-   Genera un secreto aleatorio con Node.js:
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   ```
-   Copia el resultado a `SESSION_SECRET` en `.env.local`. En producción, configura la misma variable en el entorno de despliegue. No subas `.env.local` al repositorio.
+1. `SESSION_SECRET`: una cadena aleatoria (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
+2. `NEXT_PUBLIC_FIREBASE_*`: los mismos valores de `EXPO_PUBLIC_FIREBASE_*` del `.env` de la app móvil.
+3. `FIREBASE_SERVICE_ACCOUNT`: el contenido de `scripts/serviceAccount.json` en una sola línea (`node -e "console.log(JSON.stringify(require('../scripts/serviceAccount.json')))"`). Es secreto: no se sube a GitHub.
+4. En Firebase → Authentication → Configuración → **Dominios autorizados**, agregar el dominio de Vercel para que funcione Google.
 
-4. **Iniciar el servidor de desarrollo:**
-   ```bash
-   npm run dev
-   ```
-   Abrir [http://localhost:3000](http://localhost:3000) en el navegador.
+```bash
+npm run dev     # http://localhost:3000
+```
+
+Sin conexión a la nube: con `npm run emuladores` y `npm run seed:emuladores` corriendo en la raíz, descomentar el bloque de emuladores de `.env.example` en `.env.local`.
+
+### Despliegue en Vercel
+
+1. Importar el repositorio en Vercel con **Root Directory = `web`**.
+2. Agregar las variables de `.env.example` (`SESSION_SECRET`, `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_SERVICE_ACCOUNT`) en Settings → Environment Variables.
+3. Desplegar y agregar el dominio `*.vercel.app` a los dominios autorizados de Firebase Authentication.
 
 ### Scripts Útiles
 
@@ -123,5 +136,6 @@ npx tsc --noEmit   # Verificación estricta de tipos de TypeScript
 - **UI**: React 19, Tailwind CSS v4, Base UI y componentes reutilizables con patrones de shadcn/ui
 - **Lenguaje**: TypeScript (Strict Mode)
 - **Formularios y validación**: React Hook Form y Zod
-- **Sesión y seguridad**: `jose` para JWT y `bcryptjs` para hash de contraseñas
+- **Backend**: Firebase Authentication (correo y Google) y Cloud Firestore con `firebase` 13 en el navegador y `firebase-admin` 14 en el servidor
+- **Sesión**: `jose` para el JWT de la cookie httpOnly
 - **Gráficas y utilidades**: Recharts, date-fns, lucide-react y Sonner
