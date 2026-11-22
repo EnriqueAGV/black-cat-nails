@@ -16,8 +16,7 @@ export async function GET(request: NextRequest) {
     const busqueda = (url.searchParams.get('q') || '').trim().toLowerCase();
     const filtro = url.searchParams.get('filtro') || 'todas';
 
-    const todasClientas: Usuaria[] = db.usuarias
-      .list({ rol: 'clienta' })
+    const todasClientas: Usuaria[] = (await db.usuarias.list({ rol: 'clienta' }))
       .map((u) => ({
         id: u.id,
         nombre: u.nombre,
@@ -29,7 +28,7 @@ export async function GET(request: NextRequest) {
         creadaEn: u.creadaEn,
       }));
 
-    const todasCitas = db.citas.list();
+    const todasCitas = (await db.citas.list());
 
     let resultado: ClientaConMetricas[] = todasClientas.map((clienta) => {
       const citasClienta = todasCitas.filter((c) => c.clientaId === clienta.id);

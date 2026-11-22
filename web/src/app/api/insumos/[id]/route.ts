@@ -24,7 +24,7 @@ export async function GET(
     await requireRol('admin', request);
     const { id } = await context.params;
 
-    const insumo = db.insumos.findById(id);
+    const insumo = (await db.insumos.findById(id));
     if (!insumo) {
       return NextResponse.json(
         {
@@ -75,7 +75,7 @@ export async function PATCH(
     await requireRol('admin', request);
     const { id } = await context.params;
 
-    const insumoExistente = db.insumos.findById(id);
+    const insumoExistente = (await db.insumos.findById(id));
     if (!insumoExistente) {
       return NextResponse.json(
         {
@@ -134,7 +134,7 @@ export async function PATCH(
       cambios.costo = Number(datos.costo.toFixed(2));
     }
 
-    const actualizado = db.insumos.update(id, cambios);
+    const actualizado = (await db.insumos.update(id, cambios));
     if (!actualizado) {
       return NextResponse.json(
         {

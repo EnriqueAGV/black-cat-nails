@@ -11,7 +11,7 @@ import { crearInsumoSchema } from '@/schemas';
 export async function GET(request?: NextRequest) {
   try {
     await requireRol('admin', request);
-    const insumos = db.insumos.list().map((insumo) => ({
+    const insumos = (await db.insumos.list()).map((insumo) => ({
       ...insumo,
       estado: calcularEstado(insumo),
     }));
@@ -63,13 +63,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const nuevo = db.insumos.create({
+    const nuevo = (await db.insumos.create({
       nombre: parseResult.data.nombre.trim(),
       unidad: parseResult.data.unidad,
       existencia: Number(parseResult.data.existencia.toFixed(2)),
       minimo: Number(parseResult.data.minimo.toFixed(2)),
       costo: Number(parseResult.data.costo.toFixed(2)),
-    });
+    }));
 
     const resultado = {
       ...nuevo,

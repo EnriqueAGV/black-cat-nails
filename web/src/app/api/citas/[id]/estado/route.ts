@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/server/db';
 import { formatZodError, handleAuthError, requireSession } from '@/server/session';
 import { cambiarEstadoCitaSchema } from '@/schemas';
-import { validarTransicionEstado } from '@/domain/estadosCita';
+import { ETIQUETAS_ESTADO, validarTransicionEstado } from '@/domain/estadosCita';
 import { calcularConsumo, calcularFechaRetoque } from '@/domain/inventario';
 import { Cita, Servicio } from '@/types';
 
@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const nuevoEstado = parseResult.data.estado;
 
-    const cita = db.citas.findById(id);
+    const cita = (await db.citas.findById(id));
     if (!cita) {
       return NextResponse.json(
         {
@@ -97,22 +97,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Efectos colaterales según la transición (RN-03 / RN-04)
     if (nuevoEstado === 'completada') {
       // 1. Obtener la definición completa de cada servicio de la cita desde el catálogo
-      const serviciosCompletos = cita.servicios
-        .map((s) => db.servicios.findById(s.servicioId))
-        .filter((s): s is Servicio => Boolean(s));
+      const serviciosCompletos = (
+        await Promise.all(cita.servicios.map((s) => db.servicios.findById(s.servicioId)))
+      ).filter((s): s is Servicio => Boolean(s));
 
       // 2. Calcular consumos consolidados de insumos
       const consumos = calcularConsumo(serviciosCompletos);
 
       // 3. Descontar existencias en el inventario garantizando que no queden negativas
       for (const consumo of consumos) {
-        const insumo = db.insumos.findById(consumo.insumoId);
+        const insumo = (await db.insumos.findById(consumo.insumoId));
         if (insumo) {
           const nuevaExistencia = Math.max(
             0,
             Number((insumo.existencia - consumo.cantidad).toFixed(2))
           );
-          db.insumos.update(insumo.id, { existencia: nuevaExistencia });
+          (await db.insumos.update(insumo.id, { existencia: nuevaExistencia }));
         }
       }
 
@@ -127,16 +127,25 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     } else if (nuevoEstado === 'inasistencia') {
       // Incrementar el contador de inasistencias de la clienta
-      const clienta = db.usuarias.findById(cita.clientaId);
+      const clienta = (await db.usuarias.findById(cita.clientaId));
       if (clienta) {
         const inasistenciasActualizadas = (clienta.inasistencias || 0) + 1;
-        db.usuarias.update(clienta.id, {
+        (await db.usuarias.update(clienta.id, {
           inasistencias: inasistenciasActualizadas,
-        });
+        }));
       }
     }
 
-    const actualizada = db.citas.update(id, camposActualizar);
+    const actualizada = await db.citas.update(id, camposActualizar);
+
+    // Queda en el historial de la clienta, que ella ve en la app móvil (Mi actividad).
+    await db.actividad.registrar(
+      cita.clientaId,
+      nuevoEstado === 'cancelada' ? 'cita_cancelada' : 'cita_estado',
+      `Tu cita del ${cita.inicio.slice(0, 10)} a las ${cita.inicio.slice(11, 16)} pasó a "${ETIQUETAS_ESTADO[nuevoEstado]}"`,
+      id
+    );
+
     return NextResponse.json(actualizada, { status: 200 });
   } catch (error) {
     const authResponse = handleAuthError(error);

@@ -27,7 +27,7 @@ export async function GET(
     const usuaria = await requireSession();
     const { id } = await context.params;
 
-    const servicio = db.servicios.findById(id);
+    const servicio = (await db.servicios.findById(id));
     if (!servicio) {
       return NextResponse.json(
         {
@@ -90,7 +90,7 @@ export async function PATCH(
     await requireRol('admin');
     const { id } = await context.params;
 
-    const servicioExistente = db.servicios.findById(id);
+    const servicioExistente = (await db.servicios.findById(id));
     if (!servicioExistente) {
       return NextResponse.json(
         {
@@ -128,7 +128,7 @@ export async function PATCH(
     // Si se envía un nombre, validar que no colisione con otro servicio distinto
     if (datos.nombre) {
       const nombreNormalizado = datos.nombre.trim();
-      const otro = db.servicios.findByNombre(nombreNormalizado);
+      const otro = (await db.servicios.findByNombre(nombreNormalizado));
       if (otro && otro.id !== id) {
         return NextResponse.json(
           {
@@ -145,7 +145,7 @@ export async function PATCH(
       }
     }
 
-    const servicioActualizado = db.servicios.update(id, datos);
+    const servicioActualizado = (await db.servicios.update(id, datos));
 
     return NextResponse.json(servicioActualizado, { status: 200 });
   } catch (error) {

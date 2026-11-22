@@ -1,52 +1,38 @@
 /**
  * GESTIÓN DE SESIÓN Y AUTENTICACIÓN EN SERVIDOR — BLACK CAT NAILS WEB
  *
- * Consolida toda la mecánica de contraseñas, tokens JWT y cookies httpOnly en un solo
- * módulo, facilitando su sustitución por Firebase Authentication en la Etapa 3.
+ * Entrega final: la identidad la maneja Firebase Authentication (correo/contraseña y
+ * Google), igual que en la app móvil. El navegador inicia sesión con el SDK de Firebase
+ * y envía su ID token a /api/auth/*; el servidor lo verifica con firebase-admin, busca
+ * el perfil en usuarias/{uid} y emite la misma cookie httpOnly de 8 horas de la Etapa 2.
+ * Así los Route Handlers y el proxy siguen funcionando sin cambios.
  *
  * Cumple con la especificación de 06-seguridad.md y los lineamientos de AGENTS.md.
  */
 
-import bcrypt from 'bcryptjs';
-import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/server/db';
-import { Rol, Usuaria, UsuariaConHash } from '@/types';
+import { adminAuth } from '@/server/firebaseAdmin';
+import { leerToken, SESSION_COOKIE_NAME, TOKEN_EXPIRATION_SECONDS } from '@/server/token';
+import { Rol, Usuaria } from '@/types';
 
-export const SESSION_COOKIE_NAME = 'bcn_session';
-export const TOKEN_EXPIRATION_HOURS = 8;
-export const TOKEN_EXPIRATION_SECONDS = TOKEN_EXPIRATION_HOURS * 60 * 60; // 28800s
-
-/**
- * Obtiene la clave secreta para firmar/verificar JWT con el algoritmo HS256.
- */
-function getSecretKey(): Uint8Array {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('SESSION_SECRET no está configurada en las variables de entorno');
-    }
-    // Clave de respaldo defensiva de 32+ caracteres solo para desarrollo local si faltara el .env
-    return new TextEncoder().encode('fallback-session-secret-black-cat-nails-dev-32ch');
-  }
-  return new TextEncoder().encode(secret);
-}
+export { crearToken, leerToken, SESSION_COOKIE_NAME, TOKEN_EXPIRATION_HOURS, TOKEN_EXPIRATION_SECONDS } from '@/server/token';
 
 /**
- * Devuelve la usuaria sin el campo confidencial passwordHash.
+ * Devuelve solo los campos del perfil que la web expone (sin foto en base64 ni metadatos).
  */
-export function sanitizarUsuaria(usuariaConHash: UsuariaConHash): Usuaria {
+export function sanitizarUsuaria(u: Usuaria): Usuaria {
   return {
-    id: usuariaConHash.id,
-    nombre: usuariaConHash.nombre,
-    correo: usuariaConHash.correo,
-    telefono: usuariaConHash.telefono,
-    rol: usuariaConHash.rol,
-    inasistencias: usuariaConHash.inasistencias,
-    notasPrivadas: usuariaConHash.notasPrivadas,
-    creadaEn: usuariaConHash.creadaEn,
+    id: u.id,
+    nombre: u.nombre,
+    correo: u.correo,
+    telefono: u.telefono,
+    rol: u.rol,
+    inasistencias: u.inasistencias ?? 0,
+    notasPrivadas: u.notasPrivadas,
+    creadaEn: u.creadaEn,
   };
 }
 
@@ -71,56 +57,21 @@ export function formatZodError(error: z.ZodError) {
 }
 
 /**
- * Genera el hash de una contraseña usando bcryptjs con 10 rondas de sal.
+ * Verifica un ID token emitido por Firebase Authentication (web o móvil).
+ * Devuelve el uid y los datos básicos de la cuenta, o null si el token no es válido.
  */
-export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, 10);
-}
-
-/**
- * Compara una contraseña en texto plano contra su hash bcrypt.
- */
-export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(plain, hash);
-}
-
-/**
- * Firma un JWT de sesión con jose y SESSION_SECRET.
- * Contenido del payload: { sub: usuariaId, rol }
- * Expiración: 8 horas.
- */
-export async function crearToken(usuaria: Pick<Usuaria, 'id' | 'rol'>): Promise<string> {
-  return new SignJWT({ rol: usuaria.rol })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(usuaria.id)
-    .setIssuedAt()
-    .setExpirationTime(`${TOKEN_EXPIRATION_HOURS}h`)
-    .sign(getSecretKey());
-}
-
-/**
- * Verifica y decodifica un JWT de sesión.
- * Retorna el id (sub) y el rol de la usuaria si el token es válido y no ha expirado.
- */
-export async function leerToken(
-  token: string
-): Promise<{ sub: string; rol: Rol } | null> {
+export async function verificarIdToken(
+  idToken: unknown
+): Promise<{ uid: string; correo: string; nombre: string; proveedor: 'password' | 'google' } | null> {
+  if (typeof idToken !== 'string' || idToken.length < 20) return null;
   try {
-    const { payload } = await jwtVerify(token, getSecretKey(), {
-      algorithms: ['HS256'],
-    });
-
-    if (
-      typeof payload.sub === 'string' &&
-      (payload.rol === 'admin' || payload.rol === 'clienta')
-    ) {
-      return {
-        sub: payload.sub,
-        rol: payload.rol as Rol,
-      };
-    }
-
-    return null;
+    const decoded = await adminAuth().verifyIdToken(idToken);
+    return {
+      uid: decoded.uid,
+      correo: (decoded.email ?? '').toLowerCase(),
+      nombre: (decoded.name as string | undefined) ?? '',
+      proveedor: decoded.firebase?.sign_in_provider === 'google.com' ? 'google' : 'password',
+    };
   } catch {
     return null;
   }
@@ -149,8 +100,8 @@ export async function clearSessionCookie(): Promise<void> {
 }
 
 /**
- * Obtiene la usuaria autenticada actual a partir de la cookie de sesión y el repositorio en memoria.
- * Retorna la usuaria sin el campo sensible passwordHash, o null si no hay sesión válida.
+ * Obtiene la usuaria autenticada actual a partir de la cookie de sesión y su perfil en Firestore.
+ * Retorna null si no hay sesión válida.
  */
 export async function getSession(req?: Request | NextRequest): Promise<Usuaria | null> {
   try {
@@ -184,12 +135,12 @@ export async function getSession(req?: Request | NextRequest): Promise<Usuaria |
       return null;
     }
 
-    const usuariaConHash = db.usuarias.findById(payload.sub);
-    if (!usuariaConHash) {
+    const usuaria = await db.usuarias.findById(payload.sub);
+    if (!usuaria) {
       return null;
     }
 
-    return sanitizarUsuaria(usuariaConHash);
+    return sanitizarUsuaria(usuaria);
   } catch {
     return null;
   }

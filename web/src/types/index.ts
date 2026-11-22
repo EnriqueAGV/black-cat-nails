@@ -17,12 +17,13 @@ export interface Usuaria {
   inasistencias: number;      // contador precalculado
   notasPrivadas?: string;     // solo visible para la admin
   creadaEn: string;           // ISO
+  // Campos que agrega la app móvil (Firestore compartido):
+  codigoReferido?: string;
+  referidaPor?: string;
+  fotoUri?: string;
+  proveedor?: 'password' | 'google';
 }
 
-/** Nunca sale del servidor. */
-export interface UsuariaConHash extends Usuaria {
-  passwordHash: string;
-}
 
 export interface ConsumoInsumo {
   insumoId: string;
@@ -129,7 +130,7 @@ export interface DashboardData {
 }
 
 export interface SeedData {
-  usuarias: UsuariaConHash[];
+  usuarias: Usuaria[];
   servicios: Servicio[];
   insumos: Insumo[];
   citas: Cita[];

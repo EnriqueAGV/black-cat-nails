@@ -30,3 +30,17 @@ export const loginSchema = z.object({
 
 export type RegistroInput = z.infer<typeof registroSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+/**
+ * Perfil que el servidor guarda en usuarias/{uid} después de crear la cuenta en
+ * Firebase Authentication (registro con correo o primer ingreso con Google).
+ */
+export const perfilRegistroSchema = z.object({
+  nombre: registroSchema.shape.nombre,
+  telefono: registroSchema.shape.telefono,
+});
+
+export const completarPerfilSchema = perfilRegistroSchema;
+
+export type PerfilRegistroInput = z.infer<typeof perfilRegistroSchema>;
+export type CompletarPerfilInput = z.infer<typeof completarPerfilSchema>;

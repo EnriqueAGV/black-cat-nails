@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 
     const serviciosEncontrados: Servicio[] = [];
     for (const id of servicioIds) {
-      const servicio = db.servicios.findById(id);
+      const servicio = (await db.servicios.findById(id));
       if (!servicio) {
         return NextResponse.json(
           {
@@ -122,9 +122,7 @@ export async function GET(request: NextRequest) {
     const duracionTotalMin = calcularDuracionTotal(serviciosEncontrados);
 
     // 6. Obtener citas registradas para ese día
-    const citasDelDia = db.citas
-      .list()
-      .filter((cita) => cita.inicio.startsWith(fecha));
+    const citasDelDia = await db.citas.delDia(fecha);
 
     // 7. Calcular disponibilidad de bloques con la función pura de dominio
     const horarios = calcularHorarios(

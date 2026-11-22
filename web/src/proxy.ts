@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { leerToken, SESSION_COOKIE_NAME } from '@/server/session';
+import { leerToken, SESSION_COOKIE_NAME } from '@/server/token';
 
 /**
  * PROXY DE PROTECCIÓN DE RUTAS (Next.js 16) — BLACK CAT NAILS WEB (BCN-10)

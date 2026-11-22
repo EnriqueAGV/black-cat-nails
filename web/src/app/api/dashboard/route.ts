@@ -25,9 +25,9 @@ export async function GET(request?: NextRequest) {
       fechaReferencia = url.searchParams.get('fecha') || undefined;
     }
 
-    const citas = db.citas.list();
-    const insumos = db.insumos.list();
-    const usuarias = db.usuarias.list();
+    const citas = (await db.citas.list());
+    const insumos = (await db.insumos.list());
+    const usuarias = (await db.usuarias.list());
 
     const dashboardData = calcularDashboard(
       citas,

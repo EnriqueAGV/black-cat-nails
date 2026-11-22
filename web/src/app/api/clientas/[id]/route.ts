@@ -25,7 +25,7 @@ export async function GET(
     await requireRol('admin', request);
     const { id } = await context.params;
 
-    const usuaria = db.usuarias.findById(id);
+    const usuaria = (await db.usuarias.findById(id));
     if (!usuaria || usuaria.rol !== 'clienta') {
       return NextResponse.json(
         {
@@ -50,8 +50,7 @@ export async function GET(
     };
 
     // Historial completo de citas de la clienta ordenadas de la más reciente a la más antigua
-    const citas = db.citas
-      .list({ clientaId: id })
+    const citas = (await db.citas.list({ clientaId: id }))
       .sort((a, b) => b.inicio.localeCompare(a.inicio));
 
     const metricas = calcularMetricasClienta(clienta, citas);
@@ -94,7 +93,7 @@ export async function PATCH(
     await requireRol('admin', request);
     const { id } = await context.params;
 
-    const usuaria = db.usuarias.findById(id);
+    const usuaria = (await db.usuarias.findById(id));
     if (!usuaria || usuaria.rol !== 'clienta') {
       return NextResponse.json(
         {
@@ -140,7 +139,7 @@ export async function PATCH(
       cambios.notasPrivadas = datos.notasPrivadas.trim();
     }
 
-    const actualizada = db.usuarias.update(id, cambios);
+    const actualizada = (await db.usuarias.update(id, cambios));
     if (!actualizada) {
       return NextResponse.json(
         {
@@ -164,8 +163,7 @@ export async function PATCH(
       creadaEn: actualizada.creadaEn,
     };
 
-    const citas = db.citas
-      .list({ clientaId: id })
+    const citas = (await db.citas.list({ clientaId: id }))
       .sort((a, b) => b.inicio.localeCompare(a.inicio));
 
     const metricas = calcularMetricasClienta(clientaSanitizada, citas);

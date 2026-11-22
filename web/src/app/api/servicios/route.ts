@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const usuaria = await requireSession();
 
     if (usuaria.rol === 'clienta') {
-      const servicios = db.servicios.list({ activo: true });
+      const servicios = (await db.servicios.list({ activo: true }));
       return NextResponse.json(servicios, { status: 200 });
     }
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const filtro =
       activoParam !== null ? { activo: activoParam === 'true' } : undefined;
 
-    const servicios = db.servicios.list(filtro);
+    const servicios = (await db.servicios.list(filtro));
     return NextResponse.json(servicios, { status: 200 });
   } catch (error) {
     const authResponse = handleAuthError(error);
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const datos = parseResult.data;
-    const existente = db.servicios.findByNombre(datos.nombre.trim());
+    const existente = (await db.servicios.findByNombre(datos.nombre.trim()));
     if (existente) {
       return NextResponse.json(
         {
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const nuevoServicio = db.servicios.create(datos);
+    const nuevoServicio = (await db.servicios.create(datos));
 
     return NextResponse.json(nuevoServicio, { status: 201 });
   } catch (error) {

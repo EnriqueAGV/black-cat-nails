@@ -1,28 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/server/db';
+import { db, HorarioOcupadoError } from '@/server/db';
 import { formatZodError, handleAuthError, requireSession } from '@/server/session';
 import { crearCitaSchema } from '@/schemas';
-import { calcularDuracionTotal, seCruzan } from '@/domain/disponibilidad';
+import { calcularDuracionTotal } from '@/domain/disponibilidad';
 import { HORARIO } from '@/config';
-import { Cita, EstadoCita, Intervalo, Servicio, ServicioEnCita } from '@/types';
+import { Cita, EstadoCita, Servicio, ServicioEnCita } from '@/types';
 
-/**
- * Mutex en memoria para serializar la validación de cruces y la inserción
- * de citas, impidiendo condiciones de carrera ante peticiones simultáneas.
- */
-let mutexReserva = Promise.resolve();
-
-function sincronizarReserva<T>(fn: () => Promise<T> | T): Promise<T> {
-  const proximo = mutexReserva.then(
-    () => fn(),
-    () => fn()
-  );
-  mutexReserva = proximo.then(
-    () => {},
-    () => {}
-  );
-  return proximo;
-}
 
 /**
  * Formatea una marca de tiempo en milisegundos a cadena ISO 8601 con zona El Salvador (-06:00).
@@ -75,19 +58,23 @@ export async function GET(request: NextRequest) {
         ? url.searchParams.get('clientaId') || undefined
         : usuaria.id;
 
-    const citas = db.citas.list({
+    const citas = (await db.citas.list({
       clientaId,
       desde,
       hasta,
       estado,
-    });
+    }));
 
-    // Enriquecer cada cita con los datos vigentes de la clienta
+    // Enriquecer cada cita con los datos vigentes de la clienta (una lectura por clienta)
+    const idsClientas = [...new Set(citas.map((c) => c.clientaId))];
+    const clientas = new Map(
+      await Promise.all(idsClientas.map(async (id) => [id, await db.usuarias.findById(id)] as const))
+    );
     const citasEnriquecidas = citas.map((cita) => {
-      const clienta = db.usuarias.findById(cita.clientaId);
+      const clienta = clientas.get(cita.clientaId);
       return {
         ...cita,
-        clientaNombre: clienta?.nombre,
+        clientaNombre: clienta?.nombre ?? cita.clientaNombre,
         clientaTelefono: clienta?.telefono,
         clientaCorreo: clienta?.correo,
       };
@@ -155,7 +142,7 @@ export async function POST(request: NextRequest) {
     if (usuaria.rol === 'admin') {
       if (parseResult.data.clientaId) {
         targetClientaId = parseResult.data.clientaId;
-        const clienta = db.usuarias.findById(targetClientaId);
+        const clienta = (await db.usuarias.findById(targetClientaId));
         if (!clienta) {
           return NextResponse.json(
             {
@@ -173,7 +160,7 @@ export async function POST(request: NextRequest) {
     // 3. Validar existencia y estado activo de todos los servicios solicitados
     const serviciosCompletos: Servicio[] = [];
     for (const srvId of servicioIds) {
-      const servicio = db.servicios.findById(srvId);
+      const servicio = (await db.servicios.findById(srvId));
       if (!servicio) {
         return NextResponse.json(
           {
@@ -280,43 +267,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Revalidación de disponibilidad en servidor con sincronización para evitar condiciones de carrera
-    return await sincronizarReserva(() => {
-      const citasDelDia = db.citas
-        .list()
-        .filter((c) => c.inicio.startsWith(fechaStr));
-
-      // Solo estados que ocupan agenda
-      const citasOcupadas = citasDelDia.filter((c) => {
-        return (
-          c.estado === 'solicitada' ||
-          c.estado === 'confirmada' ||
-          c.estado === 'en_curso'
-        );
-      });
-
-      const intervaloPropuesto: Intervalo = {
-        inicio: inicioIso,
-        fin: finIso,
-      };
-
-      const hayCruce = citasOcupadas.some((c) => seCruzan(intervaloPropuesto, c));
-      if (hayCruce) {
-        return NextResponse.json(
-          {
-            error: {
-              code: 'horario_ocupado',
-              message: 'Ese horario acaba de ocuparse',
-            },
-          },
-          { status: 409 }
-        );
-      }
-
-      // Crear la cita en memoria
-      const nuevaCita: Cita = db.citas.create({
-        id: `cit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    // 7. Crear la cita y reservar su bloque en agendaDias/{fecha} dentro de una transacción
+    //    de Firestore. La transacción vuelve a revisar los bloques ocupados del día, que
+    //    también escribe la app móvil: si alguien tomó ese horario, responde 409.
+    const clientaDestino =
+      targetClientaId === usuaria.id ? usuaria : await db.usuarias.findById(targetClientaId);
+    try {
+      const nuevaCita: Cita = await db.citas.crearSiDisponible({
         clientaId: targetClientaId,
+        clientaNombre: clientaDestino?.nombre,
         servicios: serviciosEnCita,
         inicio: inicioIso,
         fin: finIso,
@@ -327,8 +286,23 @@ export async function POST(request: NextRequest) {
         creadaEn: formatearIsoElSalvador(Date.now()),
       });
 
+      await db.actividad.registrar(
+        targetClientaId,
+        'cita_creada',
+        `Agendaste ${serviciosEnCita.map((s) => s.nombre).join(' + ')} para el ${fechaStr} a las ${horaStr.slice(0, 5)}`,
+        nuevaCita.id
+      );
+
       return NextResponse.json(nuevaCita, { status: 201 });
-    });
+    } catch (e) {
+      if (e instanceof HorarioOcupadoError) {
+        return NextResponse.json(
+          { error: { code: 'horario_ocupado', message: 'Ese horario acaba de ocuparse' } },
+          { status: 409 }
+        );
+      }
+      throw e;
+    }
   } catch (error) {
     const authResponse = handleAuthError(error);
     if (authResponse) {

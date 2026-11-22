@@ -52,8 +52,10 @@ function formatearFechaEspanol(fechaStr: string): string {
 }
 
 export default function AdminDashboardPage() {
-  // Fecha de referencia por defecto: fecha del seed donde hay citas programadas
-  const [fechaReferencia, setFechaReferencia] = useState('2026-09-18');
+  // Fecha de referencia por defecto: hoy en El Salvador (UTC-6). Con Firestore los datos son reales.
+  const [fechaReferencia, setFechaReferencia] = useState(() =>
+    new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  );
   const [datos, setDatos] = useState<DashboardData | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
