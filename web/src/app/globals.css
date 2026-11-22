@@ -1,0 +1,164 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-bg-base: var(--bg-base);
+  --color-surface: var(--surface);
+  --color-primary-token: var(--primary-token);
+  --color-accent-token: var(--accent-token);
+  --color-text-token: var(--text-token);
+
+  --color-status-solicitada: var(--status-solicitada);
+  --color-status-confirmada: var(--status-confirmada);
+  --color-status-en-curso: var(--status-en-curso);
+  --color-status-completada: var(--status-completada);
+  --color-status-cancelada: var(--status-cancelada);
+  --color-status-inasistencia: var(--status-inasistencia);
+
+  --color-stock-ok: var(--stock-ok);
+  --color-stock-bajo: var(--stock-bajo);
+  --color-stock-critico: var(--stock-critico);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-display);
+  --font-display: var(--font-display);
+  --font-heading: var(--font-display);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius: 16px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+}
+
+:root,
+.dark {
+  /* Tokens de diseño Black Cat Nails (05-ui-y-rutas.md y Figma) */
+  --bg-base: #1A1209;
+  --surface: #B4476E;
+  --primary-token: #E070C4;
+  --accent-token: #9AA6E0;
+  --text-token: #FFFFFF;
+
+  /* Estados de citas */
+  --status-solicitada: #9AA6E0;
+  --status-confirmada: #E070C4;
+  --status-en-curso: #B4476E;
+  --status-completada: #3F9D6B;
+  --status-cancelada: #6B6259;
+  --status-inasistencia: #C1524F;
+
+  /* Semáforo de insumos */
+  --stock-ok: #3F9D6B;
+  --stock-bajo: #D97706;
+  --stock-critico: #C1524F;
+
+  /* Mapeo con shadcn UI (Tema oscuro predeterminado) */
+  --background: #1A1209;
+  --foreground: #FFFFFF;
+
+  --card: #251B12;
+  --card-foreground: #FFFFFF;
+
+  --popover: #251B12;
+  --popover-foreground: #FFFFFF;
+
+  --primary: #E070C4;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #2E2218;
+  --secondary-foreground: #FFFFFF;
+
+  --muted: #2E2218;
+  --muted-foreground: #9AA6E0;
+
+  --accent: #9AA6E0;
+  --accent-foreground: #1A1209;
+
+  --destructive: #C1524F;
+  --destructive-foreground: #FFFFFF;
+
+  --border: rgba(154, 166, 224, 0.2);
+  --input: rgba(154, 166, 224, 0.4);
+  --ring: #E070C4;
+
+  --radius: 16px;
+
+  /* Gráficas */
+  --chart-1: #E070C4;
+  --chart-2: #B4476E;
+  --chart-3: #9AA6E0;
+  --chart-4: #3F9D6B;
+  --chart-5: #D97706;
+
+  /* Sidebar admin */
+  --sidebar: #150F07;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #E070C4;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #2E2218;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #E070C4;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .text-display-32 {
+    font-family: var(--font-display), serif;
+    font-size: 32px;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+  .text-display-24 {
+    font-family: var(--font-display), serif;
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: 700;
+  }
+  .text-body {
+    font-family: var(--font-sans), sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .text-label {
+    font-family: var(--font-sans), sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+}

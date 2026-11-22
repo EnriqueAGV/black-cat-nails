@@ -1,0 +1,52 @@
+import type { Metadata } from "next";
+import { Inter, Playfair_Display } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
+import { CatalogoProvider } from "@/context/CatalogoContext";
+import { AgendaProvider } from "@/context/AgendaContext";
+import { InventarioProvider } from "@/context/InventarioContext";
+import { Toaster } from "@/components/ui/sonner";
+import "./globals.css";
+
+const inter = Inter({
+  variable: "--font-sans",
+  subsets: ["latin"],
+});
+
+const playfair = Playfair_Display({
+  variable: "--font-display",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Black Cat Nails",
+  description: "Estudio de manicura y estética de uñas",
+  icons: {
+    icon: "/logo.svg",
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="es"
+      className={`${inter.variable} ${playfair.variable} dark h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
+        <AuthProvider>
+          <CatalogoProvider>
+            <AgendaProvider>
+              <InventarioProvider>
+                {children}
+                <Toaster />
+              </InventarioProvider>
+            </AgendaProvider>
+          </CatalogoProvider>
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
