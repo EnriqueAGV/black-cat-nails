@@ -13,18 +13,31 @@ import { loginSchema, LoginInput } from '@/schemas/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError } from '@/services/http';
+import { AccesoGoogle } from '@/components/auth/AccesoGoogle';
+import { Usuaria } from '@/types';
 
 function LoginForm() {
-  const { login } = useAuth();
+  const { login, recuperarPassword } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
 
   const [generalError, setGeneralError] = useState<string | null>(null);
 
+  const irAlPanel = (usuaria: Usuaria) => {
+    if (nextParam && nextParam.startsWith('/')) {
+      router.push(nextParam);
+    } else if (usuaria.rol === 'admin') {
+      router.push('/admin');
+    } else {
+      router.push('/app');
+    }
+  };
+
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -39,14 +52,7 @@ function LoginForm() {
     try {
       const usuaria = await login(data);
       toast.success(`¡Bienvenida de nuevo, ${usuaria.nombre}!`);
-
-      if (nextParam && nextParam.startsWith('/')) {
-        router.push(nextParam);
-      } else if (usuaria.rol === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/app');
-      }
+      irAlPanel(usuaria);
     } catch (error: unknown) {
       if (error instanceof ApiError) {
         setGeneralError(error.message);
@@ -55,6 +61,20 @@ function LoginForm() {
       } else {
         setGeneralError('Ocurrió un error inesperado al iniciar sesión');
       }
+    }
+  };
+
+  const olvideMiPassword = async () => {
+    const correo = getValues('correo').trim();
+    if (!correo) {
+      setGeneralError('Escribí tu correo y volvé a tocar "¿Olvidaste tu contraseña?"');
+      return;
+    }
+    try {
+      await recuperarPassword(correo);
+      toast.success('Si el correo está registrado, te llegará un enlace para cambiar tu contraseña.');
+    } catch (e) {
+      setGeneralError(e instanceof Error ? e.message : 'No se pudo enviar el enlace');
     }
   };
 
@@ -145,6 +165,24 @@ function LoginForm() {
           </Button>
         </div>
       </form>
+
+      <div className="mt-3 text-right">
+        <button
+          type="button"
+          onClick={olvideMiPassword}
+          className="text-xs text-white/60 hover:text-[var(--accent)] hover:underline"
+        >
+          ¿Olvidaste tu contraseña?
+        </button>
+      </div>
+
+      <AccesoGoogle
+        onListo={(usuaria, esNueva) => {
+          toast.success(esNueva ? `¡Bienvenida, ${usuaria.nombre}!` : `¡Bienvenida de nuevo, ${usuaria.nombre}!`);
+          irAlPanel(usuaria);
+        }}
+        onError={setGeneralError}
+      />
 
       {/* Enlace a registro */}
       <div className="mt-8 text-center text-sm text-white/60 flex items-center justify-center gap-1.5">

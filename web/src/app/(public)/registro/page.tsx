@@ -13,6 +13,7 @@ import { registroSchema, RegistroInput } from '@/schemas/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiError } from '@/services/http';
+import { AccesoGoogle } from '@/components/auth/AccesoGoogle';
 
 function RegistroForm() {
   const { registrar } = useAuth();
@@ -204,6 +205,14 @@ function RegistroForm() {
           </Button>
         </div>
       </form>
+
+      <AccesoGoogle
+        onListo={(usuaria) => {
+          toast.success(`¡Bienvenida, ${usuaria.nombre}!`);
+          router.push(usuaria.rol === 'admin' ? '/admin' : nextParam && nextParam.startsWith('/') ? nextParam : '/app');
+        }}
+        onError={setGeneralError}
+      />
 
       {/* Enlace a login */}
       <div className="mt-6 text-center text-sm text-white/60 flex items-center justify-center gap-1.5">

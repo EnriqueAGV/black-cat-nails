@@ -4,7 +4,7 @@
  * CONTEXTO DE AUTENTICACIÓN — BLACK CAT NAILS WEB (BCN-09)
  *
  * Mantiene el estado global de la usuaria autenticada y ofrece métodos para iniciar sesión,
- * registrarse y cerrar sesión comunicándose con la API mediante authService.
+ * registrarse (correo o Google, con Firebase Authentication) y cerrar sesión mediante authService.
  *
  * Requisito de la rúbrica DPS941: Context API nativa de React sin librerías externas.
  */
@@ -17,7 +17,7 @@ import React, {
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { LoginInput, RegistroInput } from '@/schemas';
+import { CompletarPerfilInput, LoginInput, RegistroInput } from '@/schemas';
 import { authService } from '@/services/authService';
 import { Usuaria } from '@/types';
 
@@ -26,6 +26,9 @@ export interface AuthContextType {
   cargando: boolean;
   login: (credenciales: LoginInput) => Promise<Usuaria>;
   registrar: (datos: RegistroInput) => Promise<Usuaria>;
+  loginConGoogle: () => Promise<Usuaria>;
+  completarPerfil: (datos: CompletarPerfilInput) => Promise<Usuaria>;
+  recuperarPassword: (correo: string) => Promise<void>;
   logout: () => Promise<void>;
   refrescarSesion: () => Promise<Usuaria | null>;
 }
@@ -93,6 +96,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return data;
   }, []);
 
+  const loginConGoogle = useCallback(async (): Promise<Usuaria> => {
+    const data = await authService.loginConGoogle();
+    setUsuaria(data);
+    return data;
+  }, []);
+
+  const completarPerfil = useCallback(async (datos: CompletarPerfilInput): Promise<Usuaria> => {
+    const data = await authService.completarPerfil(datos);
+    setUsuaria(data);
+    return data;
+  }, []);
+
+  const recuperarPassword = useCallback(
+    (correo: string): Promise<void> => authService.recuperarPassword(correo),
+    []
+  );
+
   const router = useRouter();
 
   const logout = useCallback(async (): Promise<void> => {
@@ -110,6 +130,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     cargando,
     login,
     registrar,
+    loginConGoogle,
+    completarPerfil,
+    recuperarPassword,
     logout,
     refrescarSesion,
   };
