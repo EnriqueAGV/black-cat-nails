@@ -8,11 +8,12 @@
  * para completar el perfil, igual que la pantalla CompletarPerfil de la app móvil.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { obtenerAuth } from '@/lib/firebase';
 import { completarPerfilSchema, CompletarPerfilInput } from '@/schemas/auth';
 import { PerfilIncompletoError } from '@/services/authService';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,17 @@ export function AccesoGoogle({ onListo, onError }: AccesoGoogleProps) {
     resolver: zodResolver(completarPerfilSchema),
     defaultValues: { nombre: '', telefono: '' },
   });
+
+  // Firebase carga su iframe de Google al crear Auth. Si eso ocurre recién al tocar el
+  // botón, la ventana se abre después de una espera y el navegador la bloquea; por eso
+  // se inicializa al montar el componente.
+  useEffect(() => {
+    try {
+      obtenerAuth();
+    } catch {
+      // Sin configuración de Firebase: el error se muestra al intentar entrar.
+    }
+  }, []);
 
   const entrar = async () => {
     setCargando(true);

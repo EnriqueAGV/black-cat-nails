@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  browserPopupRedirectResolver,
   signInWithPopup,
   signOut,
   updateProfile,
@@ -84,7 +85,7 @@ export const authService = {
 
   loginConGoogle: async (): Promise<Usuaria> => {
     try {
-      await signInWithPopup(obtenerAuth(), proveedorGoogle);
+      await signInWithPopup(obtenerAuth(), proveedorGoogle, browserPopupRedirectResolver);
     } catch (e) {
       throw traducirErrorAuth(e);
     }
