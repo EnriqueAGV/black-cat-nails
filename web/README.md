@@ -118,6 +118,7 @@ Sin conexión a la nube: con `npm run emuladores` y `npm run seed:emuladores` co
 1. Importar el repositorio en Vercel con **Root Directory = `web`**.
 2. Agregar las variables de `.env.example` (`SESSION_SECRET`, `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_SERVICE_ACCOUNT`) en Settings → Environment Variables.
 3. Desplegar y agregar el dominio `*.vercel.app` a los dominios autorizados de Firebase Authentication.
+4. En el plan Hobby, Vercel solo despliega commits cuyo autor es la cuenta de GitHub dueña del proyecto. Si un despliegue aparece como *Blocked*, configurar `git config user.email` con un correo de esa cuenta (o su dirección `noreply` de GitHub) y subir un commit nuevo.
 
 ### Scripts Útiles
 
