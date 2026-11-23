@@ -44,7 +44,7 @@ interface AccesoGoogleProps {
 }
 
 export function AccesoGoogle({ onListo, onError }: AccesoGoogleProps) {
-  const { loginConGoogle, completarPerfil } = useAuth();
+  const { loginConGoogle, resultadoGoogle, completarPerfil } = useAuth();
   const [cargando, setCargando] = useState(false);
   const [pendiente, setPendiente] = useState<{ nombre: string; correo: string } | null>(null);
   const [errorPerfil, setErrorPerfil] = useState<string | null>(null);
@@ -59,22 +59,13 @@ export function AccesoGoogle({ onListo, onError }: AccesoGoogleProps) {
     defaultValues: { nombre: '', telefono: '' },
   });
 
-  // Firebase carga su iframe de Google al crear Auth. Si eso ocurre recién al tocar el
-  // botón, la ventana se abre después de una espera y el navegador la bloquea; por eso
-  // se inicializa al montar el componente.
-  useEffect(() => {
-    try {
-      obtenerAuth();
-    } catch {
-      // Sin configuración de Firebase: el error se muestra al intentar entrar.
-    }
-  }, []);
+  const entrar = () => procesar(loginConGoogle);
 
-  const entrar = async () => {
+  async function procesar(accion: () => Promise<Usuaria | null>) {
     setCargando(true);
     try {
-      const usuaria = await loginConGoogle();
-      onListo(usuaria, false);
+      const usuaria = await accion();
+      if (usuaria) onListo(usuaria, false);
     } catch (e) {
       if (e instanceof PerfilIncompletoError) {
         reset({ nombre: e.nombre, telefono: '' });
@@ -85,7 +76,22 @@ export function AccesoGoogle({ onListo, onError }: AccesoGoogleProps) {
     } finally {
       setCargando(false);
     }
-  };
+  }
+
+  // Firebase carga su iframe de Google al crear Auth. Si eso ocurre recién al tocar el
+  // botón, la ventana se abre después de una espera y el navegador la bloquea; por eso
+  // se inicializa al montar el componente.
+  // También revisa si se vuelve de un ingreso con Google por redirección.
+  useEffect(() => {
+    try {
+      obtenerAuth();
+    } catch {
+      // Sin configuración de Firebase: el error se muestra al intentar entrar.
+      return;
+    }
+    procesar(resultadoGoogle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const guardarPerfil = async (datos: CompletarPerfilInput) => {
     setErrorPerfil(null);

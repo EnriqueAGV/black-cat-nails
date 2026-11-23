@@ -27,6 +27,7 @@ export interface AuthContextType {
   login: (credenciales: LoginInput) => Promise<Usuaria>;
   registrar: (datos: RegistroInput) => Promise<Usuaria>;
   loginConGoogle: () => Promise<Usuaria>;
+  resultadoGoogle: () => Promise<Usuaria | null>;
   completarPerfil: (datos: CompletarPerfilInput) => Promise<Usuaria>;
   recuperarPassword: (correo: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -102,6 +103,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return data;
   }, []);
 
+  const resultadoGoogle = useCallback(async (): Promise<Usuaria | null> => {
+    const data = await authService.resultadoGoogle();
+    if (data) setUsuaria(data);
+    return data;
+  }, []);
+
   const completarPerfil = useCallback(async (datos: CompletarPerfilInput): Promise<Usuaria> => {
     const data = await authService.completarPerfil(datos);
     setUsuaria(data);
@@ -131,6 +138,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     registrar,
     loginConGoogle,
+    resultadoGoogle,
     completarPerfil,
     recuperarPassword,
     logout,
