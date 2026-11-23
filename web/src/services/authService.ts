@@ -3,9 +3,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   browserPopupRedirectResolver,
-  getRedirectResult,
   signInWithPopup,
-  signInWithRedirect,
   signOut,
   updateProfile,
 } from 'firebase/auth';
@@ -88,23 +86,6 @@ export const authService = {
   loginConGoogle: async (): Promise<Usuaria> => {
     try {
       await signInWithPopup(obtenerAuth(), proveedorGoogle, browserPopupRedirectResolver);
-    } catch (e) {
-      // Si el navegador bloquea la ventana emergente, se usa la página de Google completa.
-      // Al volver, resultadoGoogle() termina el ingreso.
-      if ((e as { code?: string })?.code === 'auth/popup-blocked') {
-        await signInWithRedirect(obtenerAuth(), proveedorGoogle, browserPopupRedirectResolver);
-        return new Promise<Usuaria>(() => {});
-      }
-      throw traducirErrorAuth(e);
-    }
-    return abrirSesion();
-  },
-
-  /** Termina el ingreso con Google cuando se hizo por redirección. Devuelve null si no hubo. */
-  resultadoGoogle: async (): Promise<Usuaria | null> => {
-    try {
-      const resultado = await getRedirectResult(obtenerAuth(), browserPopupRedirectResolver);
-      if (!resultado) return null;
     } catch (e) {
       throw traducirErrorAuth(e);
     }
