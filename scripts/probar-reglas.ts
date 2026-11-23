@@ -78,7 +78,9 @@ async function main() {
   });
   await env.clearFirestore();
 
-  const en3dias = Date.now() + 72 * HORA;
+  // 10:00 UTC dentro de tres días: así en3dias + 5 h sigue en la misma fecha y la
+  // prueba no depende de la hora del día en que se corre.
+  const en3dias = Math.floor((Date.now() + 72 * HORA) / (24 * HORA)) * 24 * HORA + 10 * HORA;
   const en2horas = Date.now() + 2 * HORA;
   const fecha3 = new Date(en3dias).toISOString().slice(0, 10);
 
