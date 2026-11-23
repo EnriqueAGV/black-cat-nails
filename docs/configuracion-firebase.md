@@ -6,8 +6,8 @@ Tiempo estimado: 20 a 30 minutos. Todo se hace en https://console.firebase.googl
 
 ## 0. Bajar el código
 ```bash
-git clone https://github.com/Kikeagv/black-cat-nails-mobile.git
-cd black-cat-nails-mobile
+git clone https://github.com/EnriqueAGV/black-cat-nails.git
+cd black-cat-nails
 npm install
 ```
 

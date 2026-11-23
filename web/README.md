@@ -13,7 +13,7 @@ Sistema web para el salón de manicura y estética **Black Cat Nails by Vante**,
 ## Enlace del Despliegue
 
 - **URL de Producción**: [https://black-cat-nails.vercel.app](https://black-cat-nails.vercel.app)
-- **Repositorio**: esta carpeta `web/` del monorepo [Kikeagv/black-cat-nails-mobile](https://github.com/Kikeagv/black-cat-nails-mobile). El historial de la Etapa 2 se conservó al incorporarla.
+- **Repositorio**: esta carpeta `web/` del monorepo [EnriqueAGV/black-cat-nails](https://github.com/EnriqueAGV/black-cat-nails). El historial de la Etapa 2 se conservó al incorporarla.
 
 ## Credenciales de prueba
 

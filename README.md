@@ -239,8 +239,8 @@ Requisitos: Node.js 20 o superior y un proyecto de Firebase con Authentication (
 ### 1. Firebase y datos (una sola vez, desde la raíz)
 
 ```bash
-git clone https://github.com/Kikeagv/black-cat-nails-mobile.git
-cd black-cat-nails-mobile
+git clone https://github.com/EnriqueAGV/black-cat-nails.git
+cd black-cat-nails
 npm install
 cp .env.example .env          # valores de la app web registrada en Firebase
 npx firebase-tools login
